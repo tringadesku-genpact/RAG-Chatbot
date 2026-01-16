@@ -54,6 +54,25 @@ with st.sidebar:
 def get_pipeline():
     return RAGPipeline(index_dir="data/index")
 
+tab_chat, tab_dashboard = st.tabs(["Chat", "Dashboard"])
+with tab_dashboard:
+    import pandas as pd
+    import os, json
+
+    st.subheader("Observability")
+    log_file = "logs/rag_logs.jsonl"
+    if not os.path.exists(log_file):
+        st.info("No logs yet. Ask a few questions first.")
+    else:
+        rows = [json.loads(l) for l in open(log_file, "r", encoding="utf-8") if l.strip()]
+        df = pd.DataFrame(rows)
+        st.dataframe(df, use_container_width=True)
+
+        st.metric("Total queries", len(df))
+        st.metric("Unknown rate", f"{df['unknown'].mean()*100:.1f}%")
+        st.bar_chart(df["latency_s"])
+
+
 try:
     rag = get_pipeline()
 except Exception as e:

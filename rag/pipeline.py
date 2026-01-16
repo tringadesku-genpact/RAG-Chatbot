@@ -10,6 +10,9 @@ from .retrieve import search
 from .guardrails import filter_retrieved
 from .generate import answer_with_citations
 
+import time
+from .logging import log_event
+
 class RAGPipeline:
     def __init__(self, index_dir: str = "data/index"):
         load_dotenv()
@@ -18,6 +21,8 @@ class RAGPipeline:
         self.client = OpenAI()
 
     def ask(self, question: str) -> Dict:
+        t0 = time.time()
+
         qvec = self.embedder.embed([question])[0]
         retrieved = search(self.index, self.metadata, qvec, SETTINGS.top_k)
         retrieved = filter_retrieved(retrieved)
@@ -44,4 +49,8 @@ class RAGPipeline:
             }
             for r in retrieved
         ]
+
+        lat = time.time() - t0
+        log_event("logs/rag_logs.jsonl", question, answer, sources, lat)
+
         return {"answer": answer, "sources": sources, "retrieved": retrieved}
