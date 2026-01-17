@@ -62,7 +62,7 @@ except Exception as e:
 
 tab_chat, tab_dashboard = st.tabs(["Chat", "Dashboard"])
 
-# ---------------- Chat tab ----------------
+# Chat
 with tab_chat:
     if "messages" not in st.session_state:
         st.session_state.messages = []
@@ -99,7 +99,7 @@ with tab_chat:
 
         st.session_state.messages.append({"role": "assistant", "content": result["answer"]})
 
-# ---------------- Dashboard tab ----------------
+# Dashboard
 with tab_dashboard:
     import json
     import pandas as pd
