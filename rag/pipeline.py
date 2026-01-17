@@ -1,5 +1,5 @@
 from __future__ import annotations
-from typing import List, Dict
+from typing import Dict, Optional
 from dotenv import load_dotenv
 from openai import OpenAI
 
@@ -10,8 +10,6 @@ from .retrieve import search
 from .guardrails import filter_retrieved
 from .generate import answer_with_citations
 
-import time
-from .logging import log_event
 
 class RAGPipeline:
     def __init__(self, index_dir: str = "data/index"):
@@ -20,14 +18,19 @@ class RAGPipeline:
         self.index, self.metadata = load_index(index_dir)
         self.client = OpenAI()
 
-    def ask(self, question: str) -> Dict:
-        t0 = time.time()
-
+    def ask(self, question: str, doc_filter: Optional[str] = None) -> Dict:
         qvec = self.embedder.embed([question])[0]
-        retrieved = search(self.index, self.metadata, qvec, SETTINGS.top_k)
+
+        retrieved = search(
+            self.index,
+            self.metadata,
+            qvec,
+            SETTINGS.top_k,
+            doc_contains=doc_filter,
+        )
+
         retrieved = filter_retrieved(retrieved)
 
-        # similarity gate (cosine ~ inner product since normalized)
         if not retrieved or retrieved[0]["score"] < SETTINGS.min_score:
             return {
                 "answer": "Not in the provided documents.",
@@ -36,7 +39,7 @@ class RAGPipeline:
             }
 
         answer = answer_with_citations(self.client, SETTINGS.openai_model, question, retrieved)
-        # simple post-check: if model forgot citations and didn't say "Not in..."
+
         if ("[" not in answer) and ("Not in the provided documents" not in answer):
             answer = "Not in the provided documents."
 
@@ -49,8 +52,5 @@ class RAGPipeline:
             }
             for r in retrieved
         ]
-
-        lat = time.time() - t0
-        log_event("logs/rag_logs.jsonl", question, answer, sources, lat)
 
         return {"answer": answer, "sources": sources, "retrieved": retrieved}
